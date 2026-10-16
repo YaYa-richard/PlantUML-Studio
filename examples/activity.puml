@@ -1,0 +1,8 @@
+@startuml
+start
+:导入文件;
+:生成可编辑图形;
+:微调位置与文字;
+:导出 SVG 或 PNG;
+stop
+@enduml

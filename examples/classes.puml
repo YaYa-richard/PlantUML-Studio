@@ -1,0 +1,18 @@
+@startuml
+left to right direction
+interface Renderer {
+  + render(graph): SVG
+  + export(format): Blob
+}
+class Diagram {
+  + nodes: Node[]
+  + edges: Edge[]
+  + layout()
+}
+class Editor {
+  + undo()
+  + redo()
+}
+Editor --> Diagram : edits
+Diagram --> Renderer : renders
+@enduml

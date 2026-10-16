@@ -1,0 +1,14 @@
+@startuml
+top to bottom direction
+actor "用户" as User
+component "Web 工作台" as Web
+component "API 网关" as API
+component "转换引擎" as Engine
+database "项目存储" as Store
+component "导出服务" as Export
+User --> Web : 导入 .puml
+Web --> API : 生成图形
+Web --> Engine : 解析与布局
+API --> Store : 保存项目
+Engine --> Export : SVG / PNG
+@enduml

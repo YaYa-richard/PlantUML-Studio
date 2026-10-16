@@ -1,0 +1,15 @@
+{
+  "name": "puml-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline PlantUML to editable diagrams, SVG, PNG and draw.io",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "start": "python3 -m http.server 8787",
+    "test:browser": "node tests/browser.cjs && node tests/snapping-browser.cjs && node tests/labels-browser.cjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PUML Studio · 从代码到可编辑的图</title>
+    <meta
+      name="description"
+      content="离线将 PlantUML 转成可编辑图形，拖动、微调并导出 SVG、PNG 或 draw.io。"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#"
+        ><span class="brand-mark">p<span>↗</span></span
+        ><span>PUML <b>STUDIO</b></span
+        ><small>LOCAL FIRST</small></a
+      >
+      <div class="header-right">
+        <span class="privacy"><i></i> 文件留在你的设备</span
+        ><button id="load-project">打开项目</button
+        ><button id="save-project">保存项目</button>
+        <div class="export-wrap">
+          <button class="primary" id="export-menu" aria-expanded="false">
+            导出图形 <span>↗</span>
+          </button>
+          <div id="export-options" class="menu" hidden>
+            <button data-export="svg">SVG <small>矢量图 · 可缩放</small></button
+            ><button data-export="png">PNG <small>2× 分辨率图片</small></button
+            ><button data-export="drawio">
+              draw.io <small>原生节点与连线</small>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="source-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">01 / SOURCE</span>
+            <h1>从一段代码开始</h1>
+          </div>
+          <button
+            class="icon-button"
+            id="import"
+            title="导入 .puml 文件"
+            aria-label="导入 PlantUML 文件"
+          >
+            ↥
+          </button>
+        </div>
+        <div class="source-tools">
+          <select id="examples" aria-label="选择示例">
+            <option value="components">组件架构</option>
+            <option value="classes">类与接口</option>
+            <option value="activity">简单活动流</option></select
+          ><span>.puml</span>
+        </div>
+        <div class="editor-wrap">
+          <textarea
+            id="source"
+            spellcheck="false"
+            aria-label="PlantUML 源代码"
+          ></textarea>
+        </div>
+        <div class="source-bottom">
+          <div class="source-hint">支持拖入 .puml 文件 <kbd>Ctrl ↵</kbd></div>
+          <button id="convert" class="primary wide">
+            生成可编辑图形 <span>→</span>
+          </button>
+          <p>生成后可独立微调；再次生成会重置布局。</p>
+        </div>
+        <details class="diagnostics" id="diagnostics">
+          <summary id="diagnostic-title">转换说明</summary>
+          <div id="warnings"></div>
+          <p>
+            支持常见节点、关系、类成员及线性活动流。容器会展开；复杂活动分支、时序图及预处理暂不支持。此工具不是完整的
+            PlantUML 渲染器。
+          </p>
+        </details>
+      </aside>
+      <main>
+        <div class="canvas-header">
+          <div>
+            <span class="eyebrow">02 / CANVAS</span>
+            <h2>让图，刚刚好。</h2>
+          </div>
+          <span id="counts" class="counts"></span>
+        </div>
+        <div class="canvas-toolbar">
+          <div class="tool-group">
+            <button id="select-tool" class="active" title="选择 / 拖动">
+              ↖ <span>选择</span></button
+            ><button id="pan-tool" title="平移画布（或按住空格）">
+              ✥ <span>平移</span></button
+            ><span class="divider"></span><button id="add-node">＋ 节点</button
+            ><button id="connect">↗ 连线</button
+            ><button
+              id="snap-toggle"
+              class="active"
+              aria-pressed="true"
+              title="自动对齐吸附 · 按住 Alt 临时关闭"
+            >
+              ⊞ 吸附
+            </button>
+          </div>
+          <div class="tool-group">
+            <button id="undo" title="撤销 Ctrl+Z" aria-label="撤销">↶</button
+            ><button id="redo" title="重做 Ctrl+Shift+Z" aria-label="重做">
+              ↷</button
+            ><span class="divider"></span
+            ><button id="layout" title="重新自动布局">自动布局</button>
+          </div>
+        </div>
+        <div id="canvas-container" tabindex="0" aria-label="图形编辑画布">
+          <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern
+                id="grid"
+                width="24"
+                height="24"
+                patternUnits="userSpaceOnUse"
+              >
+                <circle cx="1" cy="1" r="1" fill="#d8dfdd" />
+              </pattern>
+              <marker
+                id="arrow"
+                markerWidth="10"
+                markerHeight="8"
+                refX="9"
+                refY="4"
+                orient="auto-start-reverse"
+                markerUnits="userSpaceOnUse"
+              >
+                <path
+                  d="M1 1 L9 4 L1 7"
+                  fill="none"
+                  stroke="#607b76"
+                  stroke-width="1.6"
+                />
+              </marker>
+            </defs>
+            <rect id="grid-bg" width="100%" height="100%" fill="url(#grid)" />
+            <g id="viewport">
+              <g id="edges"></g>
+              <g id="nodes"></g>
+              <g id="labels"></g>
+              <g id="handles"></g>
+              <g id="snap-guides" pointer-events="none"></g>
+            </g>
+          </svg>
+          <div class="canvas-note" id="canvas-note">
+            拖动节点调整布局 · 双击修改文字 · 选中连线调整端点与折点
+          </div>
+          <div class="zoom-controls">
+            <button id="zoom-out" aria-label="缩小">−</button
+            ><span id="zoom-label">100%</span
+            ><button id="zoom-in" aria-label="放大">＋</button
+            ><span class="divider"></span><button id="fit">适合画布</button>
+          </div>
+        </div>
+        <footer>
+          <span><i></i> <span id="status">就绪</span></span
+          ><span>代码定结构，你定最后一毫米。</span>
+        </footer>
+      </main>
+      <aside class="inspector">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">03 / INSPECTOR</span>
+            <h2>精细调整</h2>
+          </div>
+          <span class="settings-icon">☷</span>
+        </div>
+        <div id="empty-inspector">
+          <div class="empty-icon">⌖</div>
+          <h3>选中，就能调整</h3>
+          <p>点击画布中的节点或连线，<br />修改文字、外观和尺寸。</p>
+          <div class="tips">
+            <span>工作流</span>
+            <p><b>01</b> 导入或粘贴 PlantUML</p>
+            <p><b>02</b> 拖动图形，微调细节</p>
+            <p><b>03</b> 导出，放进你的文档</p>
+          </div>
+        </div>
+        <form id="properties" hidden>
+          <label>文字<textarea id="prop-label" rows="3"></textarea></label>
+          <div id="node-props">
+            <label
+              >成员 / 补充说明<textarea
+                id="prop-body"
+                rows="4"
+              ></textarea></label
+            ><label
+              >形状<select id="prop-kind">
+                <option value="rectangle">矩形</option>
+                <option value="round">圆角矩形</option>
+                <option value="component">组件</option>
+                <option value="database">数据库</option>
+                <option value="class">类</option>
+                <option value="interface">接口</option>
+                <option value="diamond">菱形</option>
+                <option value="actor">角色</option>
+                <option value="circle">圆形</option>
+                <option value="start">起点</option>
+                <option value="end">终点</option>
+              </select></label
+            >
+            <div class="field-row">
+              <label>填充<input id="prop-fill" type="color" /></label
+              ><label>边框<input id="prop-stroke" type="color" /></label>
+            </div>
+            <div class="field-row">
+              <label
+                >宽度<input
+                  id="prop-w"
+                  type="number"
+                  min="30"
+                  max="1200" /></label
+              ><label
+                >高度<input id="prop-h" type="number" min="30" max="1200"
+              /></label>
+            </div>
+          </div>
+          <div id="edge-props" hidden>
+            <div class="edge-section label-section">
+              <strong>连线文字框</strong>
+              <p class="edge-help">
+                直接拖动文字移动位置；拖动右下角调整大小，缩窄自动换行。双击修改文字。
+              </p>
+              <div class="field-row">
+                <label
+                  >文字框 X<input id="label-x" type="number" step="1" /></label
+                ><label
+                  >文字框 Y<input id="label-y" type="number" step="1"
+                /></label>
+              </div>
+              <div class="field-row">
+                <label
+                  >文字框宽度<input
+                    id="label-w"
+                    type="number"
+                    min="32"
+                    max="2400"
+                    step="1" /></label
+                ><label
+                  >文字框高度<input
+                    id="label-h"
+                    type="number"
+                    min="28"
+                    max="10000"
+                    step="1"
+                /></label>
+              </div>
+              <label
+                >文字框填充<select id="label-fill-mode">
+                  <option value="transparent">透明（默认）</option>
+                  <option value="color">颜色填充</option>
+                </select></label
+              >
+              <div class="field-row">
+                <label
+                  >填充颜色<input
+                    id="label-fill-color"
+                    type="color"
+                    value="#ffffff" /></label
+                ><label
+                  >不透明度 %<input
+                    id="label-fill-opacity"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value="0"
+                /></label>
+              </div>
+              <p id="label-size-hint" class="edge-help"></p>
+              <button type="button" id="reset-label">恢复自动文字框</button>
+            </div>
+            <label
+              >线条<select id="prop-dashed">
+                <option value="false">实线</option>
+                <option value="true">虚线</option>
+              </select></label
+            ><label
+              >箭头<select id="prop-arrow">
+                <option value="true">显示</option>
+                <option value="false">隐藏</option>
+              </select></label
+            >
+            <div class="edge-section">
+              <strong>起点连接位置</strong
+              ><span>节点内相对坐标 % · 自动贴边</span>
+              <div class="field-row">
+                <label
+                  >X %<input
+                    id="source-x"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1" /></label
+                ><label
+                  >Y %<input
+                    id="source-y"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                /></label>
+              </div>
+              <button type="button" id="source-reset">恢复自动起点</button>
+            </div>
+            <div class="edge-section">
+              <strong>终点连接位置</strong>
+              <div class="field-row">
+                <label
+                  >X %<input
+                    id="target-x"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1" /></label
+                ><label
+                  >Y %<input
+                    id="target-y"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                /></label>
+              </div>
+              <button type="button" id="target-reset">恢复自动终点</button>
+            </div>
+            <div class="edge-section">
+              <strong>路径折点</strong><span id="waypoint-count"></span>
+              <p class="edge-help">
+                拖动方块调整端点，圆点调整转折；点击线段上的 ＋
+                添加折点，双击圆点删除。下方可输入画布 X / Y 坐标。
+              </p>
+              <div class="waypoint-head">
+                <span>#</span><span>X</span><span>Y</span><span></span>
+              </div>
+              <div id="waypoint-list"></div>
+              <button type="button" id="add-waypoint">＋ 添加折点</button>
+              <button type="button" id="reset-bend">自动路径</button>
+            </div>
+          </div>
+          <button type="button" class="danger" id="delete">删除选中元素</button>
+        </form>
+        <div class="inspector-bottom">
+          <span class="tag">OFFLINE & OPEN SOURCE</span>
+          <p>保存项目保留布局和源码。<br />SVG / PNG 用于分享与文档。</p>
+        </div>
+      </aside>
+    </div>
+    <input
+      type="file"
+      id="file-input"
+      accept=".puml,.plantuml,.txt"
+      hidden
+    /><input type="file" id="project-input" accept=".json,.pumlstudio" hidden />
+    <div id="toast" role="status" hidden></div>
+    <dialog id="edit-dialog">
+      <form method="dialog">
+        <h3>编辑文字</h3>
+        <textarea id="edit-text" rows="5" aria-label="元素文字"></textarea>
+        <div>
+          <button value="cancel">取消</button
+          ><button id="edit-confirm" value="ok" class="primary">应用</button>
+        </div>
+      </form>
+    </dialog>
+    <script src="parser.js"></script>
+    <script src="snapping.js"></script>
+    <script src="label-layout.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
